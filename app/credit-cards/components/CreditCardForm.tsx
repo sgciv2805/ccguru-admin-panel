@@ -1,52 +1,20 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
+import { useState } from "react";
 import { Database } from "@/types/supabase";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useState } from "react";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Loader2, CreditCard, Banknote, Percent, Link } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { SearchableSelect } from "../../../src/components/ui/searchable-select";
 
 type Bank = Database["public"]["Tables"]["banks"]["Row"];
 
-const cardTypes = ["Credit", "Charge", "Debit"] as const;
-const cardNetworks = ["Visa", "Mastercard", "American Express", "Discover", "RuPay"] as const;
-
-const formSchema = z.object({
-  card_name: z.string().min(1, "Card name is required"),
-  card_type: z.string().optional(),
-  card_network: z.string().optional(),
-  annual_fee: z.string().optional(),
-  reward_rate: z.string().optional(),
-  bank_id: z.string().min(1, "Bank is required"),
-  foreign_transaction_fee: z.string().optional(),
-  intro_apr: z.string().optional(),
-  joining_fee: z.string().optional(),
-  official_page_url: z.string().optional(),
-  regular_apr: z.string().optional(),
-  signup_bonus: z.string().optional(),
-  source: z.string().optional(),
-  reward_program_id: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+const cardTypes = ["Travel", "Cashback", "Business", "Student", "Secured", "Other"] as const;
+const cardNetworks = ["Visa", "Mastercard", "American Express", "Discover", "Other"] as const;
 
 interface CreditCardFormProps {
   banks: Bank[];
@@ -55,377 +23,276 @@ interface CreditCardFormProps {
 }
 
 export function CreditCardForm({ banks, onSuccess, onCancel }: CreditCardFormProps) {
-  const supabase = createClientComponentClient<Database>();
-  const [cardTypeSearch, setCardTypeSearch] = useState("");
-  const [cardNetworkSearch, setCardNetworkSearch] = useState("");
-  const [bankSearch, setBankSearch] = useState("");
-  const [isCardTypeOpen, setIsCardTypeOpen] = useState(false);
-  const [isCardNetworkOpen, setIsCardNetworkOpen] = useState(false);
-  const [isBankOpen, setIsBankOpen] = useState(false);
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      card_name: "",
-      card_type: "Credit",
-      card_network: "Visa",
-      annual_fee: "",
-      reward_rate: "",
-      bank_id: "",
-      foreign_transaction_fee: "",
-      intro_apr: "",
-      joining_fee: "",
-      official_page_url: "",
-      regular_apr: "",
-      signup_bonus: "",
-      source: "",
-      reward_program_id: "",
-    },
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    card_name: "",
+    bank_id: "",
+    card_type: "",
+    card_network: "",
+    annual_fee: "",
+    reward_rate: "",
+    signup_bonus: "",
+    intro_apr: "",
+    regular_apr: "",
+    foreign_transaction_fee: "",
+    official_page_url: "",
   });
 
-  const onSubmit = async (values: FormValues) => {
-    const transformedValues = {
-      ...values,
-      annual_fee: values.annual_fee ? parseFloat(values.annual_fee) : null,
-      reward_rate: values.reward_rate ? parseFloat(values.reward_rate) : null,
-      foreign_transaction_fee: values.foreign_transaction_fee ? parseFloat(values.foreign_transaction_fee) : null,
-      joining_fee: values.joining_fee ? parseFloat(values.joining_fee) : null,
-    };
+  const supabase = createClientComponentClient<Database>();
 
-    const { error } = await supabase.from("credit_cards").insert([transformedValues]);
+  const bankOptions = banks.map(bank => ({
+    label: bank.bank_name,
+    value: bank.id,
+    icon: <Banknote className="w-4 h-4 text-emerald-500" />
+  }));
 
-    if (error) {
+  const cardTypeOptions = cardTypes.map(type => ({
+    label: type,
+    value: type,
+    icon: <CreditCard className="w-4 h-4 text-purple-500" />
+  }));
+
+  const cardNetworkOptions = cardNetworks.map(network => ({
+    label: network,
+    value: network,
+    icon: <CreditCard className="w-4 h-4 text-blue-500" />
+  }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.from("credit_cards").insert([
+        {
+          card_name: formData.card_name,
+          bank_id: formData.bank_id || null,
+          card_type: formData.card_type || null,
+          card_network: formData.card_network || null,
+          annual_fee: formData.annual_fee ? parseFloat(formData.annual_fee) : null,
+          reward_rate: formData.reward_rate ? parseFloat(formData.reward_rate) : null,
+          signup_bonus: formData.signup_bonus || null,
+          intro_apr: formData.intro_apr || null,
+          regular_apr: formData.regular_apr || null,
+          foreign_transaction_fee: formData.foreign_transaction_fee ? parseFloat(formData.foreign_transaction_fee) : null,
+          official_page_url: formData.official_page_url || null,
+        },
+      ]);
+
+      if (error) throw error;
+      onSuccess();
+    } catch (error) {
       console.error("Error adding credit card:", error);
-      return;
+      toast.error("Failed to add credit card");
+    } finally {
+      setLoading(false);
     }
-
-    onSuccess();
   };
 
-  const filteredCardTypes = cardTypes.filter((type) =>
-    type.toLowerCase().includes(cardTypeSearch.toLowerCase())
-  );
-
-  const filteredCardNetworks = cardNetworks.filter((network) =>
-    network.toLowerCase().includes(cardNetworkSearch.toLowerCase())
-  );
-
-  const filteredBanks = banks.filter((bank) =>
-    bank.bank_name.toLowerCase().includes(bankSearch.toLowerCase())
-  );
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    e.stopPropagation();
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="card_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Card Name</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="card_type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Card Type</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-                open={isCardTypeOpen}
-                onOpenChange={setIsCardTypeOpen}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select card type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent className="max-h-60 overflow-y-auto">
-                  <div className="sticky top-0 z-10 bg-background p-2">
-                    <Input
-                      placeholder="Search card types..."
-                      value={cardTypeSearch}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        setCardTypeSearch(e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={handleSearchKeyDown}
-                      onFocus={(e) => e.target.select()}
-                      className="h-8"
-                    />
-                  </div>
-                  {filteredCardTypes.map((type) => (
-                    <SelectItem 
-                      key={type} 
-                      value={type}
-                      onPointerDown={(e) => e.preventDefault()}
-                    >
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="card_network"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Card Network</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-                open={isCardNetworkOpen}
-                onOpenChange={setIsCardNetworkOpen}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select card network" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent className="max-h-60 overflow-y-auto">
-                  <div className="sticky top-0 z-10 bg-background p-2">
-                    <Input
-                      placeholder="Search networks..."
-                      value={cardNetworkSearch}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        setCardNetworkSearch(e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={handleSearchKeyDown}
-                      onFocus={(e) => e.target.select()}
-                      className="h-8"
-                    />
-                  </div>
-                  {filteredCardNetworks.map((network) => (
-                    <SelectItem 
-                      key={network} 
-                      value={network}
-                      onPointerDown={(e) => e.preventDefault()}
-                    >
-                      {network}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="annual_fee"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Annual Fee</FormLabel>
-              <FormControl>
-                <Input type="number" step="0.01" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="reward_rate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Reward Rate (%)</FormLabel>
-              <FormControl>
-                <Input type="number" step="0.01" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="bank_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Bank</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-                open={isBankOpen}
-                onOpenChange={setIsBankOpen}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bank" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent className="max-h-60 overflow-y-auto">
-                  <div className="sticky top-0 z-10 bg-background p-2">
-                    <Input
-                      placeholder="Search banks..."
-                      value={bankSearch}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        setBankSearch(e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={handleSearchKeyDown}
-                      onFocus={(e) => e.target.select()}
-                      className="h-8"
-                    />
-                  </div>
-                  {filteredBanks.map((bank) => (
-                    <SelectItem 
-                      key={bank.id} 
-                      value={bank.id}
-                      onPointerDown={(e) => e.preventDefault()}
-                    >
-                      {bank.bank_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="foreign_transaction_fee"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Foreign Transaction Fee</FormLabel>
-              <FormControl>
-                <Input type="number" step="0.01" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="intro_apr"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Intro APR</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="joining_fee"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Joining Fee</FormLabel>
-              <FormControl>
-                <Input type="number" step="0.01" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="official_page_url"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Official Page URL</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="regular_apr"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Regular APR</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="signup_bonus"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Signup Bonus</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="source"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Source</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="reward_program_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Reward Program ID</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end space-x-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit">Add Card</Button>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="card_name" className="text-sm font-medium text-gray-700">
+            Card Name
+          </Label>
+          <div className="relative">
+            <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              id="card_name"
+              name="card_name"
+              value={formData.card_name}
+              onChange={handleChange}
+              required
+              className="pl-10"
+              placeholder="Enter card name"
+            />
+          </div>
         </div>
-      </form>
-    </Form>
+
+        <div className="space-y-2">
+          <Label htmlFor="bank_id" className="text-sm font-medium text-gray-700">
+            Bank
+          </Label>
+          <SearchableSelect
+            options={bankOptions}
+            value={formData.bank_id}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, bank_id: value }))}
+            placeholder="Select bank"
+            searchPlaceholder="Search banks..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="card_type" className="text-sm font-medium text-gray-700">
+            Card Type
+          </Label>
+          <SearchableSelect
+            options={cardTypeOptions}
+            value={formData.card_type}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, card_type: value }))}
+            placeholder="Select card type"
+            searchPlaceholder="Search card types..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="card_network" className="text-sm font-medium text-gray-700">
+            Card Network
+          </Label>
+          <SearchableSelect
+            options={cardNetworkOptions}
+            value={formData.card_network}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, card_network: value }))}
+            placeholder="Select card network"
+            searchPlaceholder="Search card networks..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="annual_fee" className="text-sm font-medium text-gray-700">
+            Annual Fee (₹)
+          </Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+            <Input
+              id="annual_fee"
+              name="annual_fee"
+              type="number"
+              value={formData.annual_fee}
+              onChange={handleChange}
+              className="pl-8"
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="reward_rate" className="text-sm font-medium text-gray-700">
+            Reward Rate (%)
+          </Label>
+          <div className="relative">
+            <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              id="reward_rate"
+              name="reward_rate"
+              type="number"
+              value={formData.reward_rate}
+              onChange={handleChange}
+              className="pl-10"
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="signup_bonus" className="text-sm font-medium text-gray-700">
+            Sign-up Bonus
+          </Label>
+          <Input
+            id="signup_bonus"
+            name="signup_bonus"
+            value={formData.signup_bonus}
+            onChange={handleChange}
+            placeholder="Enter sign-up bonus details"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="intro_apr" className="text-sm font-medium text-gray-700">
+            Intro APR
+          </Label>
+          <Input
+            id="intro_apr"
+            name="intro_apr"
+            value={formData.intro_apr}
+            onChange={handleChange}
+            placeholder="Enter intro APR details"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="regular_apr" className="text-sm font-medium text-gray-700">
+            Regular APR
+          </Label>
+          <Input
+            id="regular_apr"
+            name="regular_apr"
+            value={formData.regular_apr}
+            onChange={handleChange}
+            placeholder="Enter regular APR"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="foreign_transaction_fee" className="text-sm font-medium text-gray-700">
+            Foreign Transaction Fee (%)
+          </Label>
+          <div className="relative">
+            <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              id="foreign_transaction_fee"
+              name="foreign_transaction_fee"
+              type="number"
+              value={formData.foreign_transaction_fee}
+              onChange={handleChange}
+              className="pl-10"
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="official_page_url" className="text-sm font-medium text-gray-700">
+            Official Page URL
+          </Label>
+          <div className="relative">
+            <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              id="official_page_url"
+              name="official_page_url"
+              type="url"
+              value={formData.official_page_url}
+              onChange={handleChange}
+              className="pl-10"
+              placeholder="https://"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-4 pt-4 border-t">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          className="hover:bg-gray-100"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={loading}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Adding Card...
+            </>
+          ) : (
+            <>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Add Card
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
   );
 } 
