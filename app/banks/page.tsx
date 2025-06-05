@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,7 @@ export default function BanksPage() {
   const { toast } = useToast();
   const supabase = createClientComponentClient<Database>();
 
-  const fetchBanks = async () => {
+  const fetchBanks = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("banks")
@@ -38,11 +38,11 @@ export default function BanksPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase, toast]);
 
   useEffect(() => {
     fetchBanks();
-  }, []);
+  }, [fetchBanks]);
 
   const handleEdit = (bank: Bank) => {
     setSelectedBank(bank);

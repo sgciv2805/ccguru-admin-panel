@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Database } from "@/types/supabase";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ export default function CreditCardsPage() {
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const supabase = createClientComponentClient<Database>();
 
-  const fetchCreditCards = async () => {
+  const fetchCreditCards = useCallback(async () => {
     const { data, error } = await supabase
       .from("credit_cards")
       .select("*")
@@ -71,9 +71,9 @@ export default function CreditCardsPage() {
     }
 
     setCreditCards(data || []);
-  };
+  }, [supabase, toast]);
 
-  const fetchBanks = async () => {
+  const fetchBanks = useCallback(async () => {
     const { data, error } = await supabase
       .from("banks")
       .select("*")
@@ -86,12 +86,12 @@ export default function CreditCardsPage() {
     }
 
     setBanks(data || []);
-  };
+  }, [supabase, toast]);
 
   useEffect(() => {
     fetchCreditCards();
     fetchBanks();
-  }, []);
+  }, [fetchCreditCards, fetchBanks]);
 
   const handleAddSuccess = () => {
     setIsAddDialogOpen(false);

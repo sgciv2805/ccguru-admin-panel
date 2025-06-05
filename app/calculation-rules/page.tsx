@@ -44,7 +44,6 @@ export default function Page() {
     terms_and_conditions: "",
     cap_amount: null,
     min_spend: null,
-    calculation_type: "rate",
     id: undefined,
     created_at: undefined,
     updated_at: undefined,

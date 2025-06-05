@@ -48,7 +48,7 @@ export default function Page() {
     setLoading(true);
     const [{ data: milestonesData, error: milestonesError }, { data: cardsData, error: cardsError }] = await Promise.all([
       supabase.from("milestones").select("*"),
-      supabase.from("credit_cards").select("id, card_name")
+      supabase.from("credit_cards").select("*")
     ]);
     if (milestonesError) {
       toast({ title: "Error fetching milestones", description: milestonesError.message, variant: "destructive" });
@@ -175,7 +175,7 @@ export default function Page() {
       const cardB = getCardNameById(b.card_id).toLowerCase();
       return cardA.localeCompare(cardB);
     });
-  }, [milestones, creditCards]);
+  }, [milestones, getCardNameById]);
 
   return (
     <div className="max-w-7xl mx-auto p-4">

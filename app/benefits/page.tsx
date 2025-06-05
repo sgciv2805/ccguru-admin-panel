@@ -271,7 +271,7 @@ export default function Page() {
   );
   const allTypes = useMemo(
     () => Array.from(new Set([...benefitTypes, ...uniqueTypes])),
-    [benefitTypes, uniqueTypes]
+    [uniqueTypes]
   );
 
   const filteredTypes = useMemo(

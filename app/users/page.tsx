@@ -46,7 +46,7 @@ export default function Page() {
   }
 
   async function fetchCreditCards() {
-    const { data, error } = await supabase.from("credit_cards").select("id, card_name");
+    const { data, error } = await supabase.from("credit_cards").select("*");
     if (!error && data) setCreditCards(data);
   }
 
