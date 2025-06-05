@@ -29,7 +29,7 @@ interface BanksTableProps {
   banks: Bank[];
   isLoading: boolean;
   onEdit: (bank: Bank) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }
 
 export function BanksTable({ banks, isLoading, onEdit, onDelete }: BanksTableProps) {
@@ -87,7 +87,7 @@ export function BanksTable({ banks, isLoading, onEdit, onDelete }: BanksTablePro
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => onDelete(Number(bank.id))}
+                        onClick={() => onDelete(bank.id)}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
                         Delete

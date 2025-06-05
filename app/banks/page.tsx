@@ -49,7 +49,7 @@ export default function BanksPage() {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase.from("banks").delete().eq("id", id);
       if (error) throw error;
