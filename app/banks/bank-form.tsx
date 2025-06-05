@@ -129,7 +129,7 @@ export function BankForm({ open, onOpenChange, bank, onSubmit }: BankFormProps) 
                 <FormItem>
                   <FormLabel>Logo URL</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value || ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
